@@ -1,35 +1,25 @@
-import json
 import uuid
 from datetime import datetime
 
 import streamlit as st
-
-from config import HISTORY_DIR
-
-
-def _get_history_path(username):
-    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-    return HISTORY_DIR / f"{username}.json"
+from db import get_db
 
 
 def load_history(username):
-    path = _get_history_path(username)
-    if path.exists():
-        return json.loads(path.read_text())
-    return []
+    db = get_db()
+    entries = list(db.history.find({"username": username}).sort("timestamp", -1))
+    return entries
 
 
 def save_script(username, user_inputs, generated_script):
-    history = load_history(username)
-    entry = {
+    db = get_db()
+    db.history.insert_one({
+        "username": username,
         "id": str(uuid.uuid4()),
         "timestamp": datetime.now().isoformat(),
         "inputs": user_inputs,
         "script": generated_script,
-    }
-    history.append(entry)
-    path = _get_history_path(username)
-    path.write_text(json.dumps(history, indent=2))
+    })
 
 
 def render_history_sidebar(username):
@@ -40,7 +30,7 @@ def render_history_sidebar(username):
         st.caption("No scripts generated yet.")
         return
 
-    for entry in reversed(history):
+    for entry in history:
         ts = entry["timestamp"][:16].replace("T", " ")
         topic = entry["inputs"].get("topic", "Untitled")
         label = f"{ts} — {topic[:30]}"

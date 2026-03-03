@@ -1,24 +1,6 @@
-import json
 from datetime import datetime
 import streamlit as st
-from config import USERS_FILE, DATA_DIR, HISTORY_DIR
-
-
-def _ensure_data_dirs():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _load_users():
-    _ensure_data_dirs()
-    if USERS_FILE.exists():
-        return json.loads(USERS_FILE.read_text())
-    return {}
-
-
-def _save_users(users):
-    _ensure_data_dirs()
-    USERS_FILE.write_text(json.dumps(users, indent=2))
+from db import get_db
 
 
 def register_user(username, pin):
@@ -29,24 +11,24 @@ def register_user(username, pin):
     username = username.strip().lower()
     if not username:
         return False, "Username cannot be empty."
-    users = _load_users()
-    if username in users:
+
+    db = get_db()
+    if db.users.find_one({"username": username}):
         return False, "Username already taken."
-    users[username] = {
+
+    db.users.insert_one({
+        "username": username,
         "pin": pin,
         "created_at": datetime.now().isoformat(),
-    }
-    _save_users(users)
+    })
     return True, "Registration successful! You can now login."
 
 
 def authenticate(username, pin):
     username = username.strip().lower()
-    users = _load_users()
-    user = users.get(username)
-    if user and user["pin"] == pin:
-        return True
-    return False
+    db = get_db()
+    user = db.users.find_one({"username": username, "pin": pin})
+    return user is not None
 
 
 def render_auth_page():
