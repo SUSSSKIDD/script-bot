@@ -11,7 +11,10 @@ DATA_DIR = BASE_DIR / "data"
 FAISS_DIR = DATA_DIR / "faiss"
 
 # MongoDB
-MONGO_URI = os.getenv("MONGO_URI", "")
+MONGO_USER = os.getenv("MONGO_USER", "")
+MONGO_PASS = os.getenv("MONGO_PASS", "")
+MONGO_HOST = os.getenv("MONGO_HOST", "")
+MONGO_APP = os.getenv("MONGO_APP", "")
 MONGO_DB_NAME = "script_bot"
 
 # Gemini
