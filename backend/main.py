@@ -40,6 +40,7 @@ app.include_router(generate.router)
 app.include_router(history.router)
 
 
+@app.get("/")
 @app.get("/health")
 def health():
     return {"status": "ok"}
