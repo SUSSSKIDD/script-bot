@@ -19,11 +19,11 @@ MONGO_DB_NAME = "script_bot"
 
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GENERATION_MODEL = "gemini-3-flash-preview"
+GENERATION_MODEL = "models/gemini-2.5-flash-lite"
 EMBEDDING_MODEL = "gemini-embedding-001"
 
 # FAISS
-TOP_K_RESULTS = 5
+TOP_K_RESULTS = 8
 
 # App
 APP_TITLE = "Reels Script Generator"
