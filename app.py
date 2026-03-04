@@ -2,9 +2,10 @@ import streamlit as st
 
 from config import APP_TITLE, GEMINI_API_KEY, SCRIPTS_DIR
 from auth import render_auth_page
-from embeddings import EmbeddingStore
+from embeddings import upload_script, sync_local_scripts, get_script_count, delete_script
 from generator import generate_script
-from history import load_history, save_script, render_history_sidebar
+from history import save_script, render_history_sidebar
+from db import get_db
 
 
 def resolve_api_key():
@@ -14,10 +15,11 @@ def resolve_api_key():
             "Your Gemini API Key (optional)",
             type="password",
             help="Paste your own key if the default one is exhausted. Get one at https://aistudio.google.com/apikey",
+            key="user_api_key",
         )
-    # User-provided key takes priority
-    if user_key:
-        return user_key
+    # User-provided key ALWAYS takes priority over default
+    if user_key and user_key.strip():
+        return user_key.strip()
     # Then .env
     if GEMINI_API_KEY:
         return GEMINI_API_KEY
@@ -29,6 +31,50 @@ def resolve_api_key():
     except Exception:
         pass
     return None
+
+
+def render_upload_section(api_key):
+    """Render the PDF upload and manage scripts section in sidebar."""
+    with st.sidebar:
+        st.divider()
+        st.markdown("**Reference Scripts**")
+
+        # Show current script count
+        count = get_script_count()
+        st.caption(f"{count} script(s) loaded")
+
+        # Upload new PDFs
+        uploaded_files = st.file_uploader(
+            "Upload PDF scripts",
+            type=["pdf"],
+            accept_multiple_files=True,
+            key="pdf_uploader",
+        )
+        if uploaded_files and not st.session_state.get("upload_done", False):
+            any_new = False
+            for f in uploaded_files:
+                with st.spinner(f"Processing {f.name}..."):
+                    success, msg = upload_script(f.name, f.read(), api_key)
+                if success:
+                    st.success(msg)
+                    any_new = True
+            if any_new:
+                st.session_state["upload_done"] = True
+                st.rerun()
+        if not uploaded_files:
+            st.session_state["upload_done"] = False
+
+        # List uploaded scripts with delete option
+        db = get_db()
+        uploaded_docs = list(db.scripts.find({}, {"filename": 1}))
+        if uploaded_docs:
+            with st.expander(f"Manage scripts ({len(uploaded_docs)})"):
+                for doc in uploaded_docs:
+                    col1, col2 = st.columns([3, 1])
+                    col1.caption(doc["filename"])
+                    if col2.button("X", key=f"del_{doc['filename']}"):
+                        delete_script(doc["filename"])
+                        st.rerun()
 
 
 def render_generation_form(username, api_key):
@@ -98,28 +144,32 @@ def main():
         st.warning("Please enter your Gemini API key in the sidebar to continue.")
         return
 
-    # Sidebar: user info, logout, history
+    # Sidebar: user info, logout
     with st.sidebar:
         st.markdown(f"Logged in as **{username}**")
         if st.button("Logout"):
             st.session_state.clear()
             st.rerun()
+
+    # Sync any local scripts from scripts/ folder into MongoDB
+    if not st.session_state.get("local_synced", False):
+        new = sync_local_scripts(api_key)
+        if new > 0:
+            st.success(f"Synced {new} local script(s).")
+        st.session_state["local_synced"] = True
+
+    # Upload section in sidebar
+    render_upload_section(api_key)
+
+    # Sidebar history
+    with st.sidebar:
         st.divider()
         render_history_sidebar(username)
 
     # Check for reference scripts
-    pdf_count = len(list(SCRIPTS_DIR.glob("*.pdf")))
-    if pdf_count == 0:
-        st.warning("No reference scripts found. Add PDF files to the `scripts/` folder.")
+    if get_script_count() == 0:
+        st.warning("No reference scripts found. Upload PDF scripts using the sidebar.")
         return
-
-    # Sync embeddings
-    store = EmbeddingStore()
-    if store.index is None or store.index.ntotal < pdf_count:
-        with st.spinner(f"Embedding reference scripts ({pdf_count} PDFs)..."):
-            total, new = store.sync_scripts(api_key)
-        if new > 0:
-            st.success(f"Embedded {new} new script(s). Total: {total}")
 
     # Main form
     render_generation_form(username, api_key)

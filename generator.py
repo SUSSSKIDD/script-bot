@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 
 from config import GENERATION_MODEL, TOP_K_RESULTS
-from embeddings import EmbeddingStore
+from embeddings import query_similar_scripts
 
 
 def _build_prompt(reference_scripts, user_inputs):
@@ -55,13 +55,12 @@ IMPORTANT RULES:
 
 def generate_script(user_inputs, api_key):
     try:
-        store = EmbeddingStore()
         query_text = (
             f"{user_inputs['name']} studying {user_inputs['field']} "
             f"at {user_inputs['college']}, {user_inputs['situation']}. "
             f"Topic: {user_inputs['topic']}"
         )
-        references = store.query(query_text, api_key, top_k=TOP_K_RESULTS)
+        references = query_similar_scripts(query_text, api_key, top_k=TOP_K_RESULTS)
 
         if not references:
             return "Error: No reference scripts found. Please add PDF scripts to the scripts/ folder and restart."
