@@ -1,4 +1,6 @@
-const API_BASE = "/api";
+const API_BASE = import.meta.env.DEV
+  ? "/api"
+  : "https://backend-script-bot.onrender.com";
 
 async function request(path, options = {}) {
   const token = localStorage.getItem("token");
