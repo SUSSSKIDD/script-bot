@@ -20,7 +20,7 @@ async function request(path, options = {}) {
   if (res.status === 401) {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
-    window.location.href = "/login";
+    window.location.href = "/#/login";
     return;
   }
 
