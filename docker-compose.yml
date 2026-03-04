@@ -1,11 +1,10 @@
 services:
-  script-bot:
-    build: .
+  backend:
+    build: ./backend
     ports:
-      - "8501:8501"
+      - "8000:8000"
     volumes:
       - ./scripts:/app/scripts
-      - ./data:/app/data
     env_file:
       - .env
     restart: unless-stopped
